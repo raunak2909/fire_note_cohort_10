@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -8,19 +9,27 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   FirebaseFirestore? mFirestore;
+  String uid = "";
+
+  void getUserId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    uid = prefs.getString("userId") ?? "";
+    setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
     mFirestore = FirebaseFirestore.instance;
+    getUserId();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Home')),
-      body: StreamBuilder(
-        stream: mFirestore!.collection("notes").snapshots(),
+      body: uid.isNotEmpty ? StreamBuilder(
+        stream: mFirestore!.collection("users").doc(uid).collection("notes").snapshots(),
         builder: (_, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
@@ -35,7 +44,7 @@ class _HomePageState extends State<HomePage> {
 
             return allNotes.isNotEmpty
                 ? ListView.builder(
-              itemCount: allNotes.length,
+                    itemCount: allNotes.length,
                     itemBuilder: (_, index) {
                       return Card(
                         child: ListTile(
@@ -50,14 +59,18 @@ class _HomePageState extends State<HomePage> {
 
           return Container();
         },
-      ),
+      ) : Center(child: CircularProgressIndicator()),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          var docRef = await mFirestore!.collection("notes").add({
-            "title": "New Note",
-            "desc": "This is my First note!!",
-            "created_at": DateTime.now().millisecondsSinceEpoch,
-          });
+          var docRef = await mFirestore!
+              .collection("users")
+              .doc(uid)
+              .collection("notes")
+              .add({
+                "title": "New Note",
+                "desc": "This is my First note!!",
+                "created_at": DateTime.now().millisecondsSinceEpoch,
+              });
           print("Note added: ${docRef.id}");
         },
         child: Icon(Icons.add),
